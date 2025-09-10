@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>ToDo App</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="container py-5">
+<h1>ToDo App</h1>
+
+
+<form id="todoForm" class="mb-3">
+<input id="title" class="form-control" placeholder="Nueva tarea...">
+<button class="btn btn-primary mt-2">Agregar</button>
+</form>
+
+
+<ul id="todoList" class="list-group"></ul>
+
+
+<script>
+// URL de la API para Laragon
+const API = '/todo-app/public/todos.php';
+
+
+const list = document.getElementById('todoList');
+const form = document.getElementById('todoForm');
+
+
+async function loadTodos(){
+    try {
+        list.innerHTML = '';
+        const res = await fetch(API);
+        
+        if (!res.ok) {
+            throw new Error(`Error ${res.status}: ${res.statusText}`);
+        }
+        
+        const todos = await res.json();
+        todos.forEach(t => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.innerHTML = `<span>${t.done ? '✅' : '❌'} ${t.title}</span>
+            <div>
+                <button onclick="toggle(${t.id})" class="btn btn-sm btn-warning me-2">Toggle</button>
+                <button onclick="deleteTodo(${t.id})" class="btn btn-sm btn-danger">Eliminar</button>
+            </div>`;
+            list.appendChild(li);
+        });
+    } catch (error) {
+        console.error('Error al cargar todos:', error);
+        list.innerHTML = '<li class="list-group-item text-danger">Error al cargar las tareas</li>';
+    }
+}
+
+
+form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const title = document.getElementById('title').value.trim();
+    
+    if (!title) {
+        alert('Por favor ingresa un título para la tarea');
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('title', title);
+        
+        const res = await fetch('/todo-app/public/create_todo.php', {
+            method:'POST', 
+            body: formData
+        });
+        
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Error al crear la tarea');
+        }
+        
+        form.reset();
+        loadTodos();
+    } catch (error) {
+        console.error('Error al crear todo:', error);
+        alert('Error al crear la tarea: ' + error.message);
+    }
+});
+
+async function toggle(id){
+    try {
+        const res = await fetch(`/todo-app/public/toggle_todo.php?id=${id}`, {method:'GET'});
+        
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Error al cambiar estado');
+        }
+        
+        loadTodos();
+    } catch (error) {
+        console.error('Error al cambiar estado:', error);
+        alert('Error al cambiar estado: ' + error.message);
+    }
+}
+
+async function deleteTodo(id){
+    if (!confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/todo-app/public/delete_todo.php?id=${id}`, {method:'GET'});
+        
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Error al eliminar');
+        }
+        
+        loadTodos();
+    } catch (error) {
+        console.error('Error al eliminar:', error);
+        alert('Error al eliminar: ' + error.message);
+    }
+}
+
+
+loadTodos();
+</script>
+</body>
+</html>
